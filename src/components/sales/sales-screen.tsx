@@ -350,52 +350,18 @@ export function SalesScreen() {
       </div>
 
       {openSession ? (
-        <div className="sales-cart-dock">
-          <button
-            type="button"
-            className="sales-cart-dock__summary"
-            onClick={() => setCartOpen(true)}
-          >
-            <span className="sales-cart-dock__label">Carrito</span>
-            <strong>
-              {cart.length === 0
-                ? "Sin productos"
-                : `${cartUnits} · ${formatCurrency(cartTotal)}`}
-            </strong>
-          </button>
-
-          <div
-            className="toggle-row sales-cart-dock__payments"
-            role="tablist"
-            aria-label="Método de pago rápido"
-          >
-            <button
-              type="button"
-              className="toggle-button"
-              data-active={paymentMethod === "cash"}
-              onClick={() => setPaymentMethod("cash")}
-            >
-              Efe
-            </button>
-            <button
-              type="button"
-              className="toggle-button"
-              data-active={paymentMethod === "yape"}
-              onClick={() => setPaymentMethod("yape")}
-            >
-              Yape
-            </button>
-          </div>
-
-          <Button
-            className="sales-cart-dock__submit"
-            onClick={() => void submitSale()}
-            disabled={cart.length === 0 || submitting}
-          >
-            <ShoppingBasket size={18} />
-            {submitting ? "Guardando..." : "Cobrar"}
-          </Button>
-        </div>
+        <button
+          type="button"
+          className="sales-cart-fab"
+          onClick={() => setCartOpen(true)}
+        >
+          <span className="sales-cart-fab__eyebrow">Venta actual</span>
+          <strong>
+            {cart.length === 0
+              ? "Sin productos"
+              : `${cartUnits} · ${formatCurrency(cartTotal)}`}
+          </strong>
+        </button>
       ) : null}
 
       <Modal

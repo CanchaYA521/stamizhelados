@@ -77,10 +77,10 @@ export function AppShell({
           </div>
         )}
 
-        <BottomNav />
       </aside>
 
       <main className="page-stack app-main">{children}</main>
+      <BottomNav />
     </div>
   );
 }
