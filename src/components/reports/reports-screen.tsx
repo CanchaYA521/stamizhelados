@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, subDays } from "date-fns";
+import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { AlertTriangle, Ban, CalendarRange, RotateCcw, WalletCards } from "lucide-react";
 import { useAppData } from "@/components/providers/app-data-provider";
@@ -20,14 +21,98 @@ import {
   formatCurrency,
   formatDateTime,
   formatHour,
-  formatShortDate,
 } from "@/lib/utils/format";
+
+type RangePreset = "today" | "week" | "month" | "custom";
+
+type ReportActivityItem =
+  | {
+      id: string;
+      kind: "sale";
+      createdAt: string;
+      amount: number;
+      sale: SaleRecord;
+    }
+  | {
+      id: string;
+      kind: "expense";
+      createdAt: string;
+      amount: number;
+      reason: string;
+    };
 
 function defaultDateRange() {
   const today = new Date();
-  const from = format(subDays(today, 13), "yyyy-MM-dd");
+  const from = format(subDays(today, 6), "yyyy-MM-dd");
   const to = format(today, "yyyy-MM-dd");
   return { from, to };
+}
+
+function getRangeForPreset(preset: Exclude<RangePreset, "custom">) {
+  const today = new Date();
+
+  switch (preset) {
+    case "today": {
+      const date = format(today, "yyyy-MM-dd");
+      return { from: date, to: date };
+    }
+    case "week":
+      return {
+        from: format(subDays(today, 6), "yyyy-MM-dd"),
+        to: format(today, "yyyy-MM-dd"),
+      };
+    case "month":
+      return {
+        from: format(subDays(today, 29), "yyyy-MM-dd"),
+        to: format(today, "yyyy-MM-dd"),
+      };
+  }
+}
+
+function getActivePreset(from: string, to: string): RangePreset {
+  const today = getRangeForPreset("today");
+  const week = getRangeForPreset("week");
+  const month = getRangeForPreset("month");
+
+  if (from === today.from && to === today.to) {
+    return "today";
+  }
+
+  if (from === week.from && to === week.to) {
+    return "week";
+  }
+
+  if (from === month.from && to === month.to) {
+    return "month";
+  }
+
+  return "custom";
+}
+
+function formatSessionLabel(value: string) {
+  const date = new Date(value);
+  const dayKey = format(date, "yyyy-MM-dd");
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+  const yesterdayKey = format(subDays(new Date(), 1), "yyyy-MM-dd");
+
+  if (dayKey === todayKey) {
+    return "Hoy";
+  }
+
+  if (dayKey === yesterdayKey) {
+    return "Ayer";
+  }
+
+  const label = format(date, "EEE d MMM", { locale: es });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function formatSessionWindow(openedAt: string, closedAt: string | null) {
+  if (!closedAt) {
+    return `Abierta desde ${formatHour(openedAt)}`;
+  }
+
+  return `${formatHour(openedAt)} - ${formatHour(closedAt)}`;
 }
 
 export function ReportsScreen() {
@@ -123,6 +208,8 @@ export function ReportsScreen() {
   }, [saleToVoid, openSession, selectedReport]);
 
   const aggregate = aggregateSessions(summaries);
+  const selectedSummary = selectedReport?.summary ?? null;
+  const activePreset = getActivePreset(from, to);
 
   const confirmVoid = async () => {
     if (!saleToVoid) {
@@ -150,6 +237,41 @@ export function ReportsScreen() {
   const canImpactCurrent =
     Boolean(openSession) && selectedReport?.summary.id !== openSession?.id;
 
+  const selectedVoidCount = selectedReport
+    ? selectedReport.sales.filter((sale) => sale.voidInfo).length
+    : 0;
+  const selectedCashDifference =
+    selectedSummary?.countedCash === null || !selectedSummary
+      ? null
+      : selectedSummary.countedCash - selectedSummary.expectedCash;
+
+  const selectedActivity = useMemo<ReportActivityItem[]>(() => {
+    if (!selectedReport) {
+      return [];
+    }
+
+    const saleItems: ReportActivityItem[] = selectedReport.sales.map((sale) => ({
+      id: `sale-${sale.id}`,
+      kind: "sale",
+      createdAt: sale.createdAt,
+      amount: sale.totalAmount,
+      sale,
+    }));
+
+    const expenseItems: ReportActivityItem[] = selectedReport.expenses.map((expense) => ({
+      id: `expense-${expense.id}`,
+      kind: "expense",
+      createdAt: expense.createdAt,
+      amount: expense.amount,
+      reason: expense.reason,
+    }));
+
+    return [...saleItems, ...expenseItems].sort(
+      (left, right) =>
+        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+    );
+  }, [selectedReport]);
+
   return (
     <section className="page-section reports-page">
       <section className="panel reports-toolbar">
@@ -167,6 +289,33 @@ export function ReportsScreen() {
               <span className="status-pill status-pill--offline">Sin conexión</span>
             ) : null}
           </div>
+        </div>
+
+        <div className="reports-presets" role="tablist" aria-label="Rango rápido">
+          <button
+            type="button"
+            className="reports-preset"
+            data-active={activePreset === "today"}
+            onClick={() => setRange(getRangeForPreset("today"))}
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            className="reports-preset"
+            data-active={activePreset === "week"}
+            onClick={() => setRange(getRangeForPreset("week"))}
+          >
+            7 días
+          </button>
+          <button
+            type="button"
+            className="reports-preset"
+            data-active={activePreset === "month"}
+            onClick={() => setRange(getRangeForPreset("month"))}
+          >
+            30 días
+          </button>
         </div>
 
         <div className="summary-grid reports-range">
@@ -208,9 +357,9 @@ export function ReportsScreen() {
 
       <section className="stats-grid">
         <StatCard
-          label="Ventas netas"
+          label="Ventas"
           value={formatCurrency(aggregate.sales)}
-          hint={`${summaries.length} sesiones`}
+          hint={`${summaries.length} jornadas`}
           icon={<WalletCards size={16} />}
         />
         <StatCard
@@ -226,9 +375,9 @@ export function ReportsScreen() {
           icon={<WalletCards size={16} />}
         />
         <StatCard
-          label="Ajustes por anulación"
-          value={formatCurrency(aggregate.voidAdjustments)}
-          hint={`Egresos ${formatCurrency(aggregate.expenses)}`}
+          label="Egresos"
+          value={formatCurrency(aggregate.expenses)}
+          hint={`Ajustes ${formatCurrency(aggregate.voidAdjustments)}`}
           icon={<RotateCcw size={16} />}
         />
       </section>
@@ -259,9 +408,9 @@ export function ReportsScreen() {
                 >
                   <div className="report-session-item__head">
                     <div className="detail-stack">
-                      <h3>Sesión {formatShortDate(summary.openedAt)}</h3>
+                      <h3>{formatSessionLabel(summary.openedAt)}</h3>
                       <span className="muted-text">
-                        {formatDateTime(summary.openedAt)}
+                        {formatSessionWindow(summary.openedAt, summary.closedAt)}
                       </span>
                     </div>
                     <span
@@ -292,12 +441,16 @@ export function ReportsScreen() {
             <div className="detail-stack">
               <h2>
                 {selectedReport
-                  ? `Sesión ${formatShortDate(selectedReport.summary.openedAt)}`
+                  ? formatSessionLabel(selectedReport.summary.openedAt)
                   : "Detalle"}
               </h2>
               {selectedReport ? (
                 <span className="muted-text">
-                  {formatDateTime(selectedReport.summary.openedAt)}
+                  {formatDateTime(selectedReport.summary.openedAt)} ·{" "}
+                  {formatSessionWindow(
+                    selectedReport.summary.openedAt,
+                    selectedReport.summary.closedAt,
+                  )}
                 </span>
               ) : null}
             </div>
@@ -319,119 +472,152 @@ export function ReportsScreen() {
             />
           ) : (
             <div className="detail-stack reports-detail-stack">
-              <div className="summary-grid reports-detail-stats">
-                <StatCard
-                  label="Ventas netas"
-                  value={formatCurrency(selectedReport.summary.effectiveSalesTotal)}
-                />
-                <StatCard
-                  label="Efectivo esperado"
-                  value={formatCurrency(selectedReport.summary.expectedCash)}
-                />
-                <StatCard
-                  label="Yape"
-                  value={formatCurrency(selectedReport.summary.effectiveYapeSales)}
-                />
-                <StatCard
-                  label="Egresos"
-                  value={formatCurrency(selectedReport.summary.expensesTotal)}
-                />
+              <div className="chip-row">
+                <span className="badge">{selectedReport.sales.length} ventas</span>
+                <span className="badge">{selectedReport.expenses.length} egresos</span>
+                <span className="badge">{selectedVoidCount} anuladas</span>
+              </div>
+
+              <div className="reports-mini-grid">
+                <article className="reports-mini-stat">
+                  <span className="metric-label">Ventas</span>
+                  <strong className="metric-value">
+                    {formatCurrency(selectedReport.summary.effectiveSalesTotal)}
+                  </strong>
+                </article>
+                <article className="reports-mini-stat">
+                  <span className="metric-label">Efectivo</span>
+                  <strong className="metric-value">
+                    {formatCurrency(selectedReport.summary.effectiveCashSales)}
+                  </strong>
+                </article>
+                <article className="reports-mini-stat">
+                  <span className="metric-label">Yape</span>
+                  <strong className="metric-value">
+                    {formatCurrency(selectedReport.summary.effectiveYapeSales)}
+                  </strong>
+                </article>
+                <article className="reports-mini-stat">
+                  <span className="metric-label">Egresos</span>
+                  <strong className="metric-value">
+                    {formatCurrency(selectedReport.summary.expensesTotal)}
+                  </strong>
+                </article>
+                <article className="reports-mini-stat">
+                  <span className="metric-label">Esperado</span>
+                  <strong className="metric-value">
+                    {formatCurrency(selectedReport.summary.expectedCash)}
+                  </strong>
+                </article>
+                <article className="reports-mini-stat">
+                  <span className="metric-label">
+                    {selectedSummary?.countedCash === null ? "Estado" : "Diferencia"}
+                  </span>
+                  <strong className="metric-value">
+                    {selectedCashDifference === null
+                      ? selectedSummary?.status === "open"
+                        ? "Abierta"
+                        : "Pendiente"
+                      : formatCurrency(selectedCashDifference)}
+                  </strong>
+                </article>
               </div>
 
               <div className="divider" />
 
               <div className="reports-block">
                 <div className="reports-block-head">
-                  <h3>Ventas</h3>
-                  <span className="badge">{selectedReport.sales.length}</span>
+                  <h3>Movimientos</h3>
+                  <span className="badge">{selectedActivity.length}</span>
                 </div>
-                {selectedReport.sales.length === 0 ? (
+                <div className="chip-row">
+                  <span className="chip">
+                    Apertura {formatCurrency(selectedReport.summary.openingAmount)}
+                  </span>
+                  <span
+                    className={`chip ${selectedReport.summary.currentSessionVoidTotal > 0 ? "chip--danger" : ""}`}
+                  >
+                    Ajustes {formatCurrency(selectedReport.summary.currentSessionVoidTotal)}
+                  </span>
+                </div>
+
+                {selectedActivity.length === 0 ? (
                   <EmptyState
-                    title="Sin ventas"
+                    title="Sin movimientos"
                     description="No hay movimientos."
                   />
                 ) : (
                   <div className="activity-list reports-activity-list">
-                    {selectedReport.sales.map((sale) => (
-                      <article className="sales-item report-sale-item" key={sale.id}>
-                        <div className="report-sale-item__head">
-                          <div className="detail-stack">
-                            <strong>{formatCurrency(sale.totalAmount)}</strong>
-                            <span className="muted-text">
-                              {sale.paymentMethod === "cash" ? "Efectivo" : "Yape"} ·{" "}
-                              {formatHour(sale.createdAt)}
-                            </span>
-                          </div>
-                          <div className="chip-row">
-                            {sale.voidInfo ? (
-                              <span className="chip chip--danger">
-                                Anulada ·{" "}
-                                {sale.voidInfo.resolutionMode === "current_session"
-                                  ? "impacta hoy"
-                                  : "corrige origen"}
+                    {selectedActivity.map((item) =>
+                      item.kind === "sale" ? (
+                        <article className="sales-item report-sale-item" key={item.id}>
+                          <div className="report-sale-item__head">
+                            <div className="detail-stack">
+                              <strong>{formatCurrency(item.sale.totalAmount)}</strong>
+                              <span className="muted-text">
+                                {item.sale.paymentMethod === "cash" ? "Efectivo" : "Yape"} ·{" "}
+                                {formatHour(item.sale.createdAt)}
                               </span>
-                            ) : (
-                              <span className="chip">Activa</span>
-                            )}
-                          </div>
-                        </div>
-
-                        <p className="muted-text report-sale-item__items">
-                          {sale.items.map((item) => `${item.quantity}x ${item.productName}`).join(" · ")}
-                        </p>
-
-                        {sale.items.some((item) => item.note) ? (
-                          <div className="chip-row">
-                            {sale.items
-                              .filter((item) => item.note)
-                              .map((item) => (
-                                <span className="chip" key={item.id}>
-                                  {item.productName}: {item.note}
+                            </div>
+                            <div className="chip-row">
+                              <span className="chip">Venta</span>
+                              {item.sale.voidInfo ? (
+                                <span className="chip chip--danger">
+                                  Anulada ·{" "}
+                                  {item.sale.voidInfo.resolutionMode === "current_session"
+                                    ? "impacta hoy"
+                                    : "corrige origen"}
                                 </span>
-                              ))}
+                              ) : null}
+                            </div>
                           </div>
-                        ) : null}
 
-                        {!sale.voidInfo ? (
-                          <Button
-                            variant="danger"
-                            onClick={() => setSaleToVoid(sale)}
-                          >
-                            <Ban size={16} />
-                            Anular venta
-                          </Button>
-                        ) : null}
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </div>
+                          <p className="muted-text report-sale-item__items">
+                            {item.sale.items
+                              .map((saleItem) => `${saleItem.quantity}x ${saleItem.productName}`)
+                              .join(" · ")}
+                          </p>
 
-              <div className="divider" />
+                          {item.sale.items.some((saleItem) => saleItem.note) ? (
+                            <div className="chip-row">
+                              {item.sale.items
+                                .filter((saleItem) => saleItem.note)
+                                .map((saleItem) => (
+                                  <span className="chip" key={saleItem.id}>
+                                    {saleItem.productName}: {saleItem.note}
+                                  </span>
+                                ))}
+                            </div>
+                          ) : null}
 
-              <div className="reports-block">
-                <div className="reports-block-head">
-                  <h3>Egresos</h3>
-                  <span className="badge">{selectedReport.expenses.length}</span>
-                </div>
-                {selectedReport.expenses.length === 0 ? (
-                  <EmptyState
-                    title="Sin egresos"
-                    description="No hay movimientos."
-                  />
-                ) : (
-                  <div className="activity-list reports-activity-list">
-                    {selectedReport.expenses.map((expense) => (
-                      <article className="activity-item report-expense-item" key={expense.id}>
-                        <div className="panel-header">
-                          <strong>{formatCurrency(expense.amount)}</strong>
-                          <span className="chip chip--danger">
-                            {formatHour(expense.createdAt)}
-                          </span>
-                        </div>
-                        <p className="muted-text">{expense.reason}</p>
-                      </article>
-                    ))}
+                          {!item.sale.voidInfo ? (
+                            <Button
+                              variant="danger"
+                              className="button--compact reports-void-button"
+                              onClick={() => setSaleToVoid(item.sale)}
+                            >
+                              <Ban size={16} />
+                              Anular
+                            </Button>
+                          ) : null}
+                        </article>
+                      ) : (
+                        <article className="activity-item report-expense-item" key={item.id}>
+                          <div className="report-sale-item__head">
+                            <div className="detail-stack">
+                              <strong>{formatCurrency(item.amount)}</strong>
+                              <span className="muted-text">
+                                Egreso · {formatHour(item.createdAt)}
+                              </span>
+                            </div>
+                            <div className="chip-row">
+                              <span className="chip chip--danger">Egreso</span>
+                            </div>
+                          </div>
+                          <p className="muted-text">{item.reason}</p>
+                        </article>
+                      ),
+                    )}
                   </div>
                 )}
               </div>

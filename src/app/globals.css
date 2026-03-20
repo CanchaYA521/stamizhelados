@@ -701,6 +701,29 @@ img {
   overflow: hidden;
 }
 
+.reports-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.reports-preset {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: var(--fluid-sm);
+}
+
+.reports-preset[data-active="true"] {
+  background: linear-gradient(135deg, rgba(213, 99, 42, 0.16), rgba(31, 124, 114, 0.12));
+  color: var(--ink);
+  border-color: rgba(213, 99, 42, 0.22);
+}
+
 .products-inline-notice {
   width: fit-content;
   padding-block: 10px;
@@ -781,6 +804,25 @@ img {
   gap: 16px;
 }
 
+.reports-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: 10px;
+}
+
+.reports-mini-stat {
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.66);
+  display: grid;
+  gap: 6px;
+}
+
+.reports-mini-stat .metric-value {
+  font-size: clamp(1.08rem, 0.98rem + 0.42vw, 1.35rem);
+}
+
 .reports-detail-stats {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
 }
@@ -811,6 +853,10 @@ img {
 
 .report-sale-item__items {
   line-height: 1.35;
+}
+
+.reports-void-button {
+  justify-self: start;
 }
 
 .cash-panel {
