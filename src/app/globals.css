@@ -630,6 +630,123 @@ img {
   padding-bottom: calc(228px + env(safe-area-inset-bottom));
 }
 
+.cash-page {
+  align-content: start;
+}
+
+.cash-panel {
+  align-content: start;
+}
+
+.cash-panel--closed,
+.cash-panel--session {
+  gap: 18px;
+}
+
+.cash-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cash-title {
+  font-family: var(--font-heading), sans-serif;
+  font-size: clamp(1.5rem, 1.18rem + 1vw, 2rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.cash-notice {
+  width: fit-content;
+  padding-block: 10px;
+}
+
+.cash-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+}
+
+.cash-workspace {
+  align-items: start;
+}
+
+.cash-action-panel {
+  gap: 14px;
+}
+
+.cash-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cash-panel-header h2 {
+  font-size: clamp(1.15rem, 1.04rem + 0.45vw, 1.4rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.cash-close-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cash-mini-stat {
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.cash-mini-stat .metric-value {
+  font-size: clamp(1.15rem, 1.04rem + 0.5vw, 1.4rem);
+}
+
+.cash-activity-panel {
+  gap: 14px;
+}
+
+.cash-empty-state {
+  padding-block: 24px;
+}
+
+.cash-activity-list {
+  display: grid;
+  gap: 10px;
+}
+
+.cash-activity-item {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.cash-activity-item__top,
+.cash-activity-item__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cash-activity-item__top strong {
+  font-family: var(--font-heading), sans-serif;
+  font-size: clamp(1.05rem, 0.98rem + 0.3vw, 1.2rem);
+  line-height: 1;
+}
+
+.cash-activity-item__bottom {
+  align-items: flex-start;
+}
+
+.cash-activity-item__bottom .muted-text:first-child {
+  flex: 1 1 auto;
+}
+
 .sales-layout {
   display: grid;
   gap: clamp(12px, 1.5vw, 18px);
@@ -1253,6 +1370,12 @@ img {
 
   .sales-cart-item__controls {
     grid-template-columns: 1fr;
+  }
+
+  .cash-close-grid,
+  .cash-activity-item__bottom {
+    grid-template-columns: 1fr;
+    display: grid;
   }
 
   .nav-link {

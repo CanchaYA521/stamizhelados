@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BanknoteArrowDown, CircleDollarSign, ReceiptText, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/stat-card";
 import { useAppData } from "@/components/providers/app-data-provider";
 import { fetchRecentExpenses, fetchRecentSales } from "@/lib/domain/queries";
 import type { CashExpenseRecord, SaleRecord } from "@/lib/domain/types";
 import { formatCurrency, formatDateTime, formatHour } from "@/lib/utils/format";
+
+type CashActivityItem = {
+  id: string;
+  kind: "sale" | "expense";
+  amount: number;
+  label: string;
+  meta: string;
+  createdAt: string;
+};
 
 export function CashScreen() {
   const {
@@ -114,45 +122,53 @@ export function CashScreen() {
     ? Number(countedCash || 0) - openSession.expectedCash
     : 0;
 
+  const activityItems = useMemo<CashActivityItem[]>(() => {
+    const expenseItems: CashActivityItem[] = recentExpenses.map((expense) => ({
+      id: `expense-${expense.id}`,
+      kind: "expense",
+      amount: expense.amount,
+      label: expense.reason,
+      meta: "Egreso",
+      createdAt: expense.createdAt,
+    }));
+
+    const saleItems: CashActivityItem[] = recentSales.map((sale) => ({
+      id: `sale-${sale.id}`,
+      kind: "sale",
+      amount: sale.totalAmount,
+      label: sale.items.map((item) => `${item.quantity}x ${item.productName}`).join(" · "),
+      meta: sale.paymentMethod === "cash" ? "Venta efectivo" : "Venta yape",
+      createdAt: sale.createdAt,
+    }));
+
+    return [...saleItems, ...expenseItems]
+      .sort(
+        (left, right) =>
+          new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+      )
+      .slice(0, 8);
+  }, [recentExpenses, recentSales]);
+
   return (
-    <section className="page-section">
-      <div className="page-title-row">
-        <div className="detail-stack">
-          <span className="eyebrow">Caja diaria</span>
-          <h1 className="section-title">
-            Controla apertura, egresos y cierre desde una sola sesión.
-          </h1>
-          <p className="panel-subtitle">
-            Una sola caja abierta a la vez. Efectivo y Yape separados en el
-            resumen operativo.
-          </p>
-        </div>
-      </div>
-
-      {!isOnline ? (
-        <div className="notice notice--warning">
-          <strong>Estás sin conexión.</strong>
-          <p>
-            La apertura y el cierre requieren internet. Los egresos nuevos se
-            pueden guardar offline si la sesión ya estaba abierta y cacheada.
-          </p>
-        </div>
-      ) : null}
-
+    <section className="page-section cash-page">
       {!openSession ? (
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Abrir caja</h2>
-              <p className="panel-subtitle">
-                Define el monto inicial para empezar la jornada actual.
-              </p>
+        <section className="panel cash-panel cash-panel--closed">
+          <div className="cash-head">
+            <div className="detail-stack">
+              <h1 className="cash-title">Caja</h1>
+              <span className="muted-text">Cerrada</span>
             </div>
-            <CircleDollarSign size={20} />
+            <span className="badge">Sin abrir</span>
           </div>
 
+          {!isOnline ? (
+            <div className="notice notice--warning cash-notice">
+              Sin conexión
+            </div>
+          ) : null}
+
           <div className="field">
-            <label htmlFor="openingAmount">Monto de apertura</label>
+            <label htmlFor="openingAmount">Monto inicial</label>
             <input
               id="openingAmount"
               className="input"
@@ -169,48 +185,61 @@ export function CashScreen() {
             disabled={!isOnline || busyAction === "open"}
             onClick={() => void handleOpenSession()}
           >
-            {busyAction === "open" ? "Abriendo caja..." : "Abrir caja"}
+            {busyAction === "open" ? "Abriendo..." : "Abrir caja"}
           </Button>
         </section>
       ) : (
         <>
-          <section className="stats-grid">
-            <StatCard
-              label="Apertura"
-              value={formatCurrency(openSession.openingAmount)}
-              hint={formatDateTime(openSession.openedAt)}
-              icon={<Wallet size={16} />}
-            />
-            <StatCard
-              label="Efectivo"
-              value={formatCurrency(openSession.effectiveCashSales)}
-              hint={`Esperado ${formatCurrency(openSession.expectedCash)}`}
-              icon={<CircleDollarSign size={16} />}
-            />
-            <StatCard
-              label="Yape"
-              value={formatCurrency(openSession.effectiveYapeSales)}
-              hint="Venta digital neta"
-              icon={<ReceiptText size={16} />}
-            />
-            <StatCard
-              label="Egresos"
-              value={formatCurrency(openSession.expensesTotal)}
-              hint={`${pendingCount} pendiente${pendingCount === 1 ? "" : "s"} offline`}
-              icon={<BanknoteArrowDown size={16} />}
-            />
+          <section className="panel cash-panel cash-panel--session">
+            <div className="cash-head">
+              <div className="detail-stack">
+                <h1 className="cash-title">Caja</h1>
+                <span className="muted-text">
+                  Abierta {formatDateTime(openSession.openedAt)}
+                </span>
+              </div>
+              <span className="status-pill status-pill--online">Activa</span>
+            </div>
+
+            {!isOnline ? (
+              <div className="notice notice--warning cash-notice">
+                Sin conexión
+              </div>
+            ) : null}
+
+            <div className="stats-grid cash-stats-grid">
+              <StatCard
+                label="Apertura"
+                value={formatCurrency(openSession.openingAmount)}
+                hint={formatHour(openSession.openedAt)}
+                icon={<Wallet size={16} />}
+              />
+              <StatCard
+                label="Efectivo"
+                value={formatCurrency(openSession.expectedCash)}
+                hint={formatCurrency(openSession.effectiveCashSales)}
+                icon={<CircleDollarSign size={16} />}
+              />
+              <StatCard
+                label="Yape"
+                value={formatCurrency(openSession.effectiveYapeSales)}
+                hint="Digital"
+                icon={<ReceiptText size={16} />}
+              />
+              <StatCard
+                label="Egresos"
+                value={formatCurrency(openSession.expensesTotal)}
+                hint={`${pendingCount} pendiente${pendingCount === 1 ? "" : "s"}`}
+                icon={<BanknoteArrowDown size={16} />}
+              />
+            </div>
           </section>
 
-          <div className="two-column">
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Registrar egreso</h2>
-                  <p className="panel-subtitle">
-                    Sale únicamente del efectivo de la sesión abierta.
-                  </p>
-                </div>
-                <BanknoteArrowDown size={20} />
+          <div className="two-column cash-workspace">
+            <section className="panel cash-panel cash-action-panel">
+              <div className="cash-panel-header">
+                <h2>Egreso</h2>
+                <BanknoteArrowDown size={18} />
               </div>
 
               <div className="field">
@@ -234,7 +263,7 @@ export function CashScreen() {
                   className="input"
                   value={expenseReason}
                   onChange={(event) => setExpenseReason(event.target.value)}
-                  placeholder="Compras menores, movilidad, insumos..."
+                  placeholder="Motivo"
                 />
               </div>
 
@@ -243,21 +272,14 @@ export function CashScreen() {
                 disabled={busyAction === "expense"}
                 onClick={() => void handleExpense()}
               >
-                {busyAction === "expense"
-                  ? "Registrando egreso..."
-                  : "Guardar egreso"}
+                {busyAction === "expense" ? "Guardando..." : "Guardar egreso"}
               </Button>
             </section>
 
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Cerrar caja</h2>
-                  <p className="panel-subtitle">
-                    Compara el conteo real con el efectivo esperado.
-                  </p>
-                </div>
-                <CircleDollarSign size={20} />
+            <section className="panel cash-panel cash-action-panel">
+              <div className="cash-panel-header">
+                <h2>Cierre</h2>
+                <CircleDollarSign size={18} />
               </div>
 
               <div className="field">
@@ -273,22 +295,26 @@ export function CashScreen() {
                 />
               </div>
 
-              <div className="summary-grid">
-                <StatCard
-                  label="Esperado"
-                  value={formatCurrency(openSession.expectedCash)}
-                />
-                <StatCard
-                  label="Diferencia"
-                  value={formatCurrency(cashDifference)}
-                  hint={
-                    cashDifference === 0
-                      ? "Sin diferencia"
+              <div className="summary-grid cash-close-grid">
+                <article className="stat-card cash-mini-stat">
+                  <span className="metric-label">Esperado</span>
+                  <strong className="metric-value">
+                    {formatCurrency(openSession.expectedCash)}
+                  </strong>
+                </article>
+                <article className="stat-card cash-mini-stat">
+                  <span className="metric-label">Diferencia</span>
+                  <strong className="metric-value">
+                    {formatCurrency(cashDifference)}
+                  </strong>
+                  <span className="metric-footnote">
+                    {cashDifference === 0
+                      ? "Exacto"
                       : cashDifference > 0
-                        ? "Sobra efectivo"
-                        : "Falta efectivo"
-                  }
-                />
+                        ? "Sobra"
+                        : "Falta"}
+                  </span>
+                </article>
               </div>
 
               <Button
@@ -296,74 +322,44 @@ export function CashScreen() {
                 disabled={!isOnline || busyAction === "close"}
                 onClick={() => void handleCloseSession()}
               >
-                {busyAction === "close" ? "Cerrando caja..." : "Cerrar caja"}
+                {busyAction === "close" ? "Cerrando..." : "Cerrar caja"}
               </Button>
             </section>
           </div>
 
-          <div className="two-column">
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Egresos recientes</h2>
-                  <p className="panel-subtitle">Últimas salidas de efectivo.</p>
-                </div>
+          <section className="panel cash-panel cash-activity-panel">
+            <div className="cash-panel-header">
+              <h2>Actividad</h2>
+              <span className="badge">{activityItems.length}</span>
+            </div>
+
+            {activityItems.length === 0 ? (
+              <div className="sales-empty-box cash-empty-state">
+                <strong>Sin movimientos</strong>
               </div>
-
-              {recentExpenses.length === 0 ? (
-                <EmptyState
-                  title="Sin egresos registrados"
-                  description="Los egresos de esta sesión aparecerán aquí."
-                />
-              ) : (
-                <div className="activity-list">
-                  {recentExpenses.map((expense) => (
-                    <article className="activity-item" key={expense.id}>
-                      <div className="panel-header">
-                        <strong>{formatCurrency(expense.amount)}</strong>
-                        <span className="chip chip--danger">
-                          {formatHour(expense.createdAt)}
-                        </span>
-                      </div>
-                      <p className="muted-text">{expense.reason}</p>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Ventas recientes</h2>
-                  <p className="panel-subtitle">Actividad de la sesión abierta.</p>
-                </div>
+            ) : (
+              <div className="cash-activity-list">
+                {activityItems.map((item) => (
+                  <article className="cash-activity-item" key={item.id}>
+                    <div className="cash-activity-item__top">
+                      <strong>{formatCurrency(item.amount)}</strong>
+                      <span
+                        className={
+                          item.kind === "expense" ? "chip chip--danger" : "chip"
+                        }
+                      >
+                        {item.meta}
+                      </span>
+                    </div>
+                    <div className="cash-activity-item__bottom">
+                      <span className="muted-text">{item.label}</span>
+                      <span className="muted-text">{formatHour(item.createdAt)}</span>
+                    </div>
+                  </article>
+                ))}
               </div>
-
-              {recentSales.length === 0 ? (
-                <EmptyState
-                  title="Sin ventas todavía"
-                  description="Cuando registres ventas aparecerán en este resumen."
-                />
-              ) : (
-                <div className="activity-list">
-                  {recentSales.map((sale) => (
-                    <article className="activity-item" key={sale.id}>
-                      <div className="panel-header">
-                        <strong>{formatCurrency(sale.totalAmount)}</strong>
-                        <span className="chip">
-                          {sale.paymentMethod === "cash" ? "Efectivo" : "Yape"}
-                        </span>
-                      </div>
-                      <p className="muted-text">
-                        {sale.items.map((item) => `${item.quantity}x ${item.productName}`).join(" · ")}
-                      </p>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
+            )}
+          </section>
         </>
       )}
     </section>
