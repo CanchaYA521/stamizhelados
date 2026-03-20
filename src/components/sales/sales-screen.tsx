@@ -350,18 +350,30 @@ export function SalesScreen() {
       </div>
 
       {openSession ? (
-        <button
-          type="button"
-          className="sales-cart-fab"
-          onClick={() => setCartOpen(true)}
-        >
-          <span className="sales-cart-fab__eyebrow">Venta actual</span>
-          <strong>
-            {cart.length === 0
-              ? "Sin productos"
-              : `${cartUnits} · ${formatCurrency(cartTotal)}`}
-          </strong>
-        </button>
+        <div className="sales-cart-fab-row">
+          <button
+            type="button"
+            className="sales-cart-fab"
+            onClick={() => setCartOpen(true)}
+          >
+            <span className="sales-cart-fab__eyebrow">Venta actual</span>
+            <strong>
+              {cart.length === 0
+                ? "Sin productos"
+                : `${cartUnits} · ${formatCurrency(cartTotal)}`}
+            </strong>
+          </button>
+
+          <Button
+            className="sales-cart-fab__submit"
+            onClick={() => void submitSale()}
+            disabled={cart.length === 0 || submitting}
+            aria-label={submitting ? "Guardando venta" : "Registrar venta"}
+          >
+            <ShoppingBasket size={18} />
+            <span>{submitting ? "..." : "Registrar"}</span>
+          </Button>
+        </div>
       ) : null}
 
       <Modal
