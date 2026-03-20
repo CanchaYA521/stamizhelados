@@ -151,38 +151,25 @@ export function ReportsScreen() {
     Boolean(openSession) && selectedReport?.summary.id !== openSession?.id;
 
   return (
-    <section className="page-section">
-      <div className="page-title-row">
-        <div className="detail-stack">
-          <span className="eyebrow">Reportes</span>
-          <h1 className="section-title">
-            Revisa sesiones, KPIs y anulaciones con trazabilidad simple.
-          </h1>
-          <p className="panel-subtitle">
-            Filtra por rango, entra a una sesión y anula ventas corrigiendo la
-            jornada original o impactando la actual.
-          </p>
-        </div>
-      </div>
-
-      {!isOnline ? (
-        <div className="notice notice--warning">
-          Los reportes necesitan internet para consultar el historial completo.
-        </div>
-      ) : null}
-
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h2>Filtros</h2>
-            <p className="panel-subtitle">
-              Rango por fecha de apertura de sesión.
-            </p>
+    <section className="page-section reports-page">
+      <section className="panel reports-toolbar">
+        <div className="reports-toolbar__head">
+          <div className="detail-stack">
+            <h1 className="cash-title">Reportes</h1>
+            <span className="muted-text">
+              {summaries.length} sesi{summaries.length === 1 ? "ón" : "ones"}
+            </span>
           </div>
-          <CalendarRange size={20} />
+
+          <div className="chip-row">
+            <span className="badge">Historial</span>
+            {!isOnline ? (
+              <span className="status-pill status-pill--offline">Sin conexión</span>
+            ) : null}
+          </div>
         </div>
 
-        <div className="summary-grid">
+        <div className="summary-grid reports-range">
           <div className="field">
             <label htmlFor="reportFrom">Desde</label>
             <input
@@ -197,6 +184,9 @@ export function ReportsScreen() {
                 }))
               }
             />
+          </div>
+          <div className="reports-range-icon" aria-hidden="true">
+            <CalendarRange size={18} />
           </div>
           <div className="field">
             <label htmlFor="reportTo">Hasta</label>
@@ -220,13 +210,13 @@ export function ReportsScreen() {
         <StatCard
           label="Ventas netas"
           value={formatCurrency(aggregate.sales)}
-          hint={`${summaries.length} sesiones en el rango`}
+          hint={`${summaries.length} sesiones`}
           icon={<WalletCards size={16} />}
         />
         <StatCard
           label="Efectivo"
           value={formatCurrency(aggregate.cash)}
-          hint={`Esperado total ${formatCurrency(aggregate.expectedCash)}`}
+          hint={`Esperado ${formatCurrency(aggregate.expectedCash)}`}
           icon={<WalletCards size={16} />}
         />
         <StatCard
@@ -243,34 +233,31 @@ export function ReportsScreen() {
         />
       </section>
 
-      <div className="two-column">
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Sesiones</h2>
-              <p className="panel-subtitle">
-                Selecciona una para ver el detalle contable.
-              </p>
-            </div>
+      <div className="two-column reports-layout">
+        <section className="panel reports-panel reports-panel--sessions">
+          <div className="reports-panel-head">
+            <h2>Sesiones</h2>
+            <span className="badge">{summaries.length}</span>
           </div>
 
           {loadingSummaries ? (
             <p className="muted-text">Cargando sesiones...</p>
           ) : summaries.length === 0 ? (
             <EmptyState
-              title="No hay sesiones en este rango"
-              description="Prueba un rango más amplio o abre una caja nueva para empezar a registrar actividad."
+              title="Sin sesiones"
+              description="Cambia el rango."
             />
           ) : (
-            <div className="session-list">
+            <div className="session-list reports-session-list">
               {summaries.map((summary) => (
                 <button
                   key={summary.id}
-                  className="session-item"
+                  className="session-item report-session-item"
                   type="button"
                   onClick={() => setSelectedSessionId(summary.id)}
+                  data-active={summary.id === selectedSessionId}
                 >
-                  <div className="panel-header">
+                  <div className="report-session-item__head">
                     <div className="detail-stack">
                       <h3>Sesión {formatShortDate(summary.openedAt)}</h3>
                       <span className="muted-text">
@@ -284,7 +271,7 @@ export function ReportsScreen() {
                     </span>
                   </div>
 
-                  <div className="summary-grid">
+                  <div className="summary-grid report-session-item__stats">
                     <div>
                       <div className="metric-label">Ventas</div>
                       <strong>{formatCurrency(summary.effectiveSalesTotal)}</strong>
@@ -300,26 +287,39 @@ export function ReportsScreen() {
           )}
         </section>
 
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Detalle de sesión</h2>
-              <p className="panel-subtitle">
-                Ventas, egresos y anulaciones registradas.
-              </p>
+        <section className="panel reports-panel reports-panel--detail">
+          <div className="reports-panel-head">
+            <div className="detail-stack">
+              <h2>
+                {selectedReport
+                  ? `Sesión ${formatShortDate(selectedReport.summary.openedAt)}`
+                  : "Detalle"}
+              </h2>
+              {selectedReport ? (
+                <span className="muted-text">
+                  {formatDateTime(selectedReport.summary.openedAt)}
+                </span>
+              ) : null}
             </div>
+            {selectedReport ? (
+              <span
+                className={`chip ${selectedReport.summary.status === "open" ? "" : "chip--danger"}`}
+              >
+                {selectedReport.summary.status === "open" ? "Abierta" : "Cerrada"}
+              </span>
+            ) : null}
           </div>
 
           {loadingReport ? (
             <p className="muted-text">Cargando detalle...</p>
           ) : !selectedReport ? (
             <EmptyState
-              title="Selecciona una sesión"
-              description="El detalle de ventas y egresos aparecerá aquí."
+              title="Sin detalle"
+              description="Elige una sesión."
             />
           ) : (
-            <div className="detail-stack">
-              <div className="summary-grid">
+            <div className="detail-stack reports-detail-stack">
+              <div className="summary-grid reports-detail-stats">
                 <StatCard
                   label="Ventas netas"
                   value={formatCurrency(selectedReport.summary.effectiveSalesTotal)}
@@ -340,18 +340,21 @@ export function ReportsScreen() {
 
               <div className="divider" />
 
-              <div className="detail-stack">
-                <h3>Ventas</h3>
+              <div className="reports-block">
+                <div className="reports-block-head">
+                  <h3>Ventas</h3>
+                  <span className="badge">{selectedReport.sales.length}</span>
+                </div>
                 {selectedReport.sales.length === 0 ? (
                   <EmptyState
-                    title="Sin ventas en esta sesión"
-                    description="Aquí aparecerá el detalle de cada pedido registrado."
+                    title="Sin ventas"
+                    description="No hay movimientos."
                   />
                 ) : (
-                  <div className="activity-list">
+                  <div className="activity-list reports-activity-list">
                     {selectedReport.sales.map((sale) => (
-                      <article className="sales-item" key={sale.id}>
-                        <div className="panel-header">
+                      <article className="sales-item report-sale-item" key={sale.id}>
+                        <div className="report-sale-item__head">
                           <div className="detail-stack">
                             <strong>{formatCurrency(sale.totalAmount)}</strong>
                             <span className="muted-text">
@@ -373,7 +376,7 @@ export function ReportsScreen() {
                           </div>
                         </div>
 
-                        <p className="muted-text">
+                        <p className="muted-text report-sale-item__items">
                           {sale.items.map((item) => `${item.quantity}x ${item.productName}`).join(" · ")}
                         </p>
 
@@ -406,17 +409,20 @@ export function ReportsScreen() {
 
               <div className="divider" />
 
-              <div className="detail-stack">
-                <h3>Egresos</h3>
+              <div className="reports-block">
+                <div className="reports-block-head">
+                  <h3>Egresos</h3>
+                  <span className="badge">{selectedReport.expenses.length}</span>
+                </div>
                 {selectedReport.expenses.length === 0 ? (
                   <EmptyState
-                    title="Sin egresos en esta sesión"
-                    description="Los egresos registrados aparecerán aquí con hora y motivo."
+                    title="Sin egresos"
+                    description="No hay movimientos."
                   />
                 ) : (
-                  <div className="activity-list">
+                  <div className="activity-list reports-activity-list">
                     {selectedReport.expenses.map((expense) => (
-                      <article className="activity-item" key={expense.id}>
+                      <article className="activity-item report-expense-item" key={expense.id}>
                         <div className="panel-header">
                           <strong>{formatCurrency(expense.amount)}</strong>
                           <span className="chip chip--danger">
@@ -437,25 +443,21 @@ export function ReportsScreen() {
       <Modal
         open={Boolean(saleToVoid)}
         title="Anular venta"
-        description="Decide si la anulación corrige la jornada original o si se refleja como ajuste en la sesión abierta."
+        description="Define dónde impacta el ajuste."
         onClose={() => setSaleToVoid(null)}
       >
         {saleToVoid ? (
           <div className="form-stack">
             <div className="notice notice--warning">
               <strong>Venta seleccionada: {formatCurrency(saleToVoid.totalAmount)}</strong>
-              <p>
-                Registrada a las {formatHour(saleToVoid.createdAt)} por{" "}
-                {saleToVoid.paymentMethod === "cash" ? "efectivo" : "Yape"}.
-              </p>
+              <p>{formatHour(saleToVoid.createdAt)} · {saleToVoid.paymentMethod === "cash" ? "Efectivo" : "Yape"}</p>
             </div>
 
             {!canImpactCurrent ? (
               <div className="notice notice--warning">
                 <AlertTriangle size={18} />
                 <p>
-                  No hay una sesión abierta distinta para impactar hoy, así que
-                  esta anulación corregirá la jornada original.
+                  No hay otra caja abierta. Se corregirá el origen.
                 </p>
               </div>
             ) : null}

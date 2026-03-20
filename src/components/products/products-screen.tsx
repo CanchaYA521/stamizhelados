@@ -21,6 +21,8 @@ export function ProductsScreen() {
   const { products, upsertProductAction, isOnline, hasSupabaseConfig } = useAppData();
   const [draft, setDraft] = useState(initialDraft);
   const [submitting, setSubmitting] = useState(false);
+  const activeProducts = products.filter((product) => product.active).length;
+  const inactiveProducts = products.length - activeProducts;
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -75,41 +77,42 @@ export function ProductsScreen() {
   };
 
   return (
-    <section className="page-section">
-      <div className="page-title-row">
-        <div className="detail-stack">
-          <span className="eyebrow">Catálogo</span>
-          <h1 className="section-title">
-            Gestiona los productos que aparecen en la venta rápida.
-          </h1>
-          <p className="panel-subtitle">
-            Usa estado activo/inactivo para ocultar productos sin perder el
-            historial anterior.
-          </p>
-        </div>
-      </div>
+    <section className="page-section products-page">
+      <section className="panel products-summary-panel">
+        <div className="module-head">
+          <div className="detail-stack">
+            <h1 className="cash-title">Productos</h1>
+            <span className="muted-text">
+              {activeProducts} activos · {products.length} total
+            </span>
+          </div>
 
-      {!hasSupabaseConfig ? (
-        <div className="notice notice--warning">
-          Configura Supabase para crear y editar productos.
+          <div className="chip-row">
+            <span className="badge">{activeProducts} visibles</span>
+            {inactiveProducts ? (
+              <span className="chip chip--danger">{inactiveProducts} ocultos</span>
+            ) : null}
+            {!isOnline ? (
+              <span className="status-pill status-pill--offline">Sin conexión</span>
+            ) : null}
+          </div>
         </div>
-      ) : null}
 
-      {!isOnline ? (
-        <div className="notice notice--warning">
-          La edición de productos requiere internet porque modifica el catálogo
-          central.
-        </div>
-      ) : null}
+        {!hasSupabaseConfig ? (
+          <div className="notice notice--warning products-inline-notice">
+            Configura Supabase
+          </div>
+        ) : null}
+      </section>
 
-      <div className="two-column products-layout">
+      <div className="two-column products-layout products-workspace">
         <section className="panel product-form-panel">
-          <div className="panel-header product-panel-header">
-            <div>
-              <h2>{draft.id ? "Editar producto" : "Nuevo producto"}</h2>
-              <p className="panel-subtitle">
-                Nombre, precio base, categoría opcional y orden visual.
-              </p>
+          <div className="products-panel-head">
+            <div className="detail-stack">
+              <h2>{draft.id ? "Editar" : "Nuevo"}</h2>
+              <span className="muted-text">
+                {draft.id ? "Actualiza ficha" : "Alta rápida"}
+              </span>
             </div>
             <span className="panel-symbol" aria-hidden="true">
               <Tags size={18} />
@@ -221,11 +224,7 @@ export function ProductsScreen() {
               disabled={!isOnline || !hasSupabaseConfig || submitting}
               onClick={() => void handleSubmit()}
             >
-              {submitting
-                ? "Guardando..."
-                : draft.id
-                  ? "Actualizar producto"
-                  : "Crear producto"}
+              {submitting ? "Guardando..." : draft.id ? "Guardar cambios" : "Guardar"}
             </Button>
             {draft.id ? (
               <Button
@@ -241,20 +240,20 @@ export function ProductsScreen() {
         </section>
 
         <section className="panel product-list-panel">
-          <div className="panel-header">
-            <div>
-              <h2>Productos cargados</h2>
-              <p className="panel-subtitle">
-                {products.length} producto{products.length === 1 ? "" : "s"} en
-                total.
-              </p>
+          <div className="products-panel-head">
+            <div className="detail-stack">
+              <h2>Catálogo</h2>
+              <span className="muted-text">
+                {products.length} registro{products.length === 1 ? "" : "s"}
+              </span>
             </div>
+            <span className="badge">{activeProducts} activos</span>
           </div>
 
           {products.length === 0 ? (
             <EmptyState
-              title="Todavía no hay productos"
-              description="Crea el primer producto para habilitar la pantalla de venta."
+              title="Sin productos"
+              description="Crea el primero."
             />
           ) : (
             <div className="list-stack product-list">

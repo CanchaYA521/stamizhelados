@@ -634,6 +634,115 @@ img {
   align-content: start;
 }
 
+.module-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.products-page .empty-state,
+.reports-page .empty-state {
+  text-align: left;
+}
+
+.products-summary-panel,
+.reports-toolbar {
+  align-content: start;
+  gap: 14px;
+}
+
+.products-inline-notice {
+  width: fit-content;
+  padding-block: 10px;
+}
+
+.products-workspace,
+.reports-layout {
+  align-items: start;
+}
+
+.products-panel-head,
+.reports-panel-head,
+.reports-block-head,
+.report-session-item__head,
+.report-sale-item__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.reports-toolbar__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.reports-range {
+  align-items: end;
+}
+
+.reports-range-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(31, 124, 114, 0.08);
+  color: var(--teal);
+  display: grid;
+  place-items: center;
+}
+
+.reports-panel,
+.reports-block {
+  gap: 14px;
+}
+
+.reports-panel--detail {
+  align-content: start;
+}
+
+.reports-detail-stack {
+  gap: 16px;
+}
+
+.reports-detail-stats {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+}
+
+.reports-session-list,
+.reports-activity-list {
+  gap: 10px;
+}
+
+.report-session-item,
+.report-expense-item,
+.report-sale-item {
+  gap: 10px;
+}
+
+.report-session-item {
+  text-align: left;
+}
+
+.report-session-item[data-active="true"] {
+  border-color: rgba(213, 99, 42, 0.28);
+  box-shadow: 0 14px 28px rgba(208, 117, 56, 0.12);
+}
+
+.report-session-item__stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.report-sale-item__items {
+  line-height: 1.35;
+}
+
 .cash-panel {
   align-content: start;
 }
@@ -953,10 +1062,6 @@ img {
 .product-form-panel,
 .product-list-panel {
   align-content: start;
-}
-
-.product-panel-header {
-  align-items: center;
 }
 
 .panel-symbol {
@@ -1378,6 +1483,14 @@ img {
     display: grid;
   }
 
+  .reports-range {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-range-icon {
+    display: none;
+  }
+
   .nav-link {
     gap: 2px;
   }
@@ -1411,6 +1524,10 @@ img {
 
   .products-layout {
     grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  }
+
+  .reports-layout {
+    grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.22fr);
   }
 
   .hero-card > :first-child {
