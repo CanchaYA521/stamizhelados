@@ -1,22 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Minus, Plus, ReceiptText, ShoppingBasket, Trash2 } from "lucide-react";
+import { Minus, Plus, ShoppingBasket, Trash2 } from "lucide-react";
 import { useAppData } from "@/components/providers/app-data-provider";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
-import { fetchRecentSales } from "@/lib/domain/queries";
-import type {
-  CartItem,
-  PaymentMethod,
-  Product,
-  SaleRecord,
-} from "@/lib/domain/types";
+import type { CartItem, PaymentMethod, Product } from "@/lib/domain/types";
 import { getCartTotal, getCartUnits } from "@/lib/domain/calculations";
-import { formatCurrency, formatHour } from "@/lib/utils/format";
+import { formatCurrency } from "@/lib/utils/format";
 
 type ProductGroup = {
   key: string;
@@ -47,21 +40,12 @@ function getProductGroupTheme(label: string): ProductGroup["theme"] {
 }
 
 export function SalesScreen() {
-  const {
-    products,
-    openSession,
-    createSaleAction,
-    supabase,
-    dataVersion,
-    isOnline,
-    pendingCount,
-  } = useAppData();
+  const { products, openSession, createSaleAction, isOnline } = useAppData();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [submitting, setSubmitting] = useState(false);
-  const [recentSales, setRecentSales] = useState<SaleRecord[]>([]);
-  const [loadingRecent, setLoadingRecent] = useState(false);
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
 
   const activeProducts = products.filter((product) => product.active);
   const sortedProducts = [...activeProducts].sort(
@@ -99,29 +83,9 @@ export function SalesScreen() {
     productGroups.find((group) => group.key === selectedGroupKey) ?? null;
   const cartTotal = getCartTotal(cart);
   const cartUnits = getCartUnits(cart);
+  const cartCounts = new Map(cart.map((item) => [item.productId, item.quantity]));
 
-  useEffect(() => {
-    async function loadRecentSales() {
-      if (!supabase || !openSession || !isOnline) {
-        setRecentSales([]);
-        return;
-      }
-
-      setLoadingRecent(true);
-
-      try {
-        setRecentSales(await fetchRecentSales(supabase, openSession.id, 6));
-      } catch {
-        setRecentSales([]);
-      } finally {
-        setLoadingRecent(false);
-      }
-    }
-
-    void loadRecentSales();
-  }, [supabase, openSession, isOnline, dataVersion]);
-
-  const addProduct = (product: (typeof activeProducts)[number]) => {
+  const addProduct = (product: Product) => {
     setCart((current) => {
       const existing = current.find((item) => item.productId === product.id);
 
@@ -200,6 +164,8 @@ export function SalesScreen() {
       });
       setCart([]);
       setPaymentMethod("cash");
+      setCartOpen(false);
+      toast.success("Venta registrada.");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No se pudo registrar la venta.",
@@ -209,77 +175,124 @@ export function SalesScreen() {
     }
   };
 
-  return (
-    <section className="page-section">
-      <div className="page-title-row">
-        <div className="detail-stack">
-          <span className="eyebrow">Venta rápida</span>
-          <h1 className="section-title">Registra pedidos en uno o dos toques.</h1>
-          <p className="panel-subtitle">
-            Carrito con varios productos, precio editable por línea y cobro por
-            efectivo o Yape.
-          </p>
+  const renderCartEditor = (prefix: string) => {
+    if (cart.length === 0) {
+      return (
+        <div className="sales-empty-box">
+          <strong>Carrito vacío</strong>
         </div>
-      </div>
+      );
+    }
 
+    return (
+      <div className="cart-list sales-cart-list">
+        {cart.map((item) => (
+          <article className="line-item sales-cart-item" key={`${prefix}-${item.productId}`}>
+            <div className="sales-cart-item__top">
+              <div className="detail-stack sales-cart-item__copy">
+                <strong>{item.productName}</strong>
+                <span className="muted-text">{formatCurrency(item.basePrice)}</span>
+              </div>
+              <Button
+                variant="ghost"
+                className="button--compact sales-cart-item__remove"
+                onClick={() => removeItem(item.productId)}
+                aria-label={`Quitar ${item.productName}`}
+              >
+                <Trash2 size={16} />
+              </Button>
+            </div>
+
+            <div className="sales-cart-item__controls">
+              <div className="qty-row sales-cart-item__qty">
+                <Button
+                  variant="ghost"
+                  className="button--compact"
+                  onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                >
+                  <Minus size={16} />
+                </Button>
+                <span className="qty-pill">{item.quantity}</span>
+                <Button
+                  variant="ghost"
+                  className="button--compact"
+                  onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                >
+                  <Plus size={16} />
+                </Button>
+              </div>
+
+              <div className="field sales-cart-item__price">
+                <label htmlFor={`${prefix}-price-${item.productId}`}>Precio</label>
+                <input
+                  id={`${prefix}-price-${item.productId}`}
+                  className="input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={item.unitPrice}
+                  onChange={(event) =>
+                    updateItem(item.productId, {
+                      unitPrice: Number(event.target.value || 0),
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <strong className="sales-cart-item__line-total">
+              {formatCurrency(item.unitPrice * item.quantity)}
+            </strong>
+          </article>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <section className="page-section sales-page">
       {!openSession ? (
-        <EmptyState
-          title="Todavía no hay una caja abierta."
-          description="Ve a la pantalla de Caja para registrar la apertura antes de vender."
-          action={
-            <Link className="button button--primary" href="/app/caja">
-              Abrir caja
-            </Link>
-          }
-        />
+        <section className="panel sales-blocker">
+          <strong>No hay caja abierta.</strong>
+          <Link className="button button--primary" href="/app/caja">
+            Abrir caja
+          </Link>
+        </section>
       ) : null}
 
       {!isOnline ? (
-        <div className="notice notice--warning">
-          <strong>Modo offline activo.</strong>
-          <p>
-            Las ventas nuevas quedarán pendientes de sincronización. Pendientes
-            actuales: {pendingCount}.
-          </p>
+        <div className="notice notice--warning sales-inline-notice">
+          Trabajando offline.
         </div>
       ) : null}
 
-      <div className="two-column">
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Venta por categoría</h2>
-              <p className="panel-subtitle">
-                Toca una categoría y abre una lista resumida con nombre y precio.
-              </p>
-            </div>
+      <div className="sales-layout">
+        <section className="panel sales-panel sales-panel--catalog">
+          <div className="sales-panel__top">
+            <h1 className="sales-panel__title">Categorías</h1>
             <span className="badge">
               {productGroups.length} grupo{productGroups.length === 1 ? "" : "s"}
             </span>
           </div>
 
           {activeProducts.length === 0 ? (
-            <EmptyState
-              title="Aún no tienes productos activos."
-              description="Crea el catálogo desde la pantalla de Productos para empezar a vender."
-            />
+            <div className="sales-empty-box">
+              <strong>Sin productos activos</strong>
+            </div>
           ) : (
-            <div className="category-grid">
+            <div className="category-grid category-grid--compact">
               {productGroups.map((group) => (
                 <button
                   key={group.key}
                   type="button"
-                  className={`category-card category-card--${group.theme}`}
+                  className={`category-card category-card--compact category-card--${group.theme}`}
                   onClick={() => setSelectedGroupKey(group.key)}
+                  disabled={!openSession}
                 >
-                  <span className="category-card__eyebrow">Venta rápida</span>
                   <strong className="category-card__title">{group.label}</strong>
-                  <span className="category-card__meta">
+                  <span className="category-card__count">
                     {group.products.length} producto
                     {group.products.length === 1 ? "" : "s"}
-                  </span>
-                  <span className="category-card__hint">
-                    Toca para abrir la lista rápida
                   </span>
                 </button>
               ))}
@@ -287,13 +300,13 @@ export function SalesScreen() {
           )}
         </section>
 
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Carrito</h2>
-              <p className="panel-subtitle">
-                {cartUnits} unidad{cartUnits === 1 ? "" : "es"} en la venta.
-              </p>
+        <section className="panel sales-panel sales-panel--cart">
+          <div className="sales-panel__top">
+            <div className="detail-stack">
+              <h2>Venta actual</h2>
+              <span className="muted-text">
+                {cartUnits} producto{cartUnits === 1 ? "" : "s"}
+              </span>
             </div>
             <span className="badge">{formatCurrency(cartTotal)}</span>
           </div>
@@ -317,184 +330,145 @@ export function SalesScreen() {
             </button>
           </div>
 
-          {cart.length === 0 ? (
-            <EmptyState
-              title="El carrito está vacío."
-              description="Toca cualquier producto para agregarlo a la venta."
-            />
-          ) : (
-            <div className="cart-list">
-              {cart.map((item) => (
-                <article className="line-item" key={item.productId}>
-                  <div className="panel-header">
-                    <div className="detail-stack">
-                      <strong>{item.productName}</strong>
-                      <span className="muted-text">
-                        Base {formatCurrency(item.basePrice)}
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      onClick={() => removeItem(item.productId)}
-                      aria-label={`Quitar ${item.productName}`}
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
+          {renderCartEditor("desktop")}
 
-                  <div className="qty-row">
-                    <Button
-                      variant="ghost"
-                      onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                    >
-                      <Minus size={16} />
-                    </Button>
-                    <span className="qty-pill">{item.quantity}</span>
-                    <Button
-                      variant="ghost"
-                      onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor={`price-${item.productId}`}>Precio final</label>
-                    <input
-                      id={`price-${item.productId}`}
-                      className="input"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(event) =>
-                        updateItem(item.productId, {
-                          unitPrice: Number(event.target.value || 0),
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor={`note-${item.productId}`}>
-                      Nota opcional del precio
-                    </label>
-                    <input
-                      id={`note-${item.productId}`}
-                      className="input"
-                      value={item.note}
-                      onChange={(event) =>
-                        updateItem(item.productId, {
-                          note: event.target.value,
-                        })
-                      }
-                      placeholder="Promo, ajuste especial, cortesía parcial..."
-                    />
-                  </div>
-                </article>
-              ))}
+          <div className="sales-checkout-row">
+            <div className="sales-checkout-total">
+              <span>Total</span>
+              <strong>{formatCurrency(cartTotal)}</strong>
             </div>
-          )}
-
-          <div className="divider" />
-
-          <div className="summary-grid">
-            <article className="stat-card">
-              <span className="metric-label">Método</span>
-              <strong className="metric-value">
-                {paymentMethod === "cash" ? "Efectivo" : "Yape"}
-              </strong>
-            </article>
-            <article className="stat-card">
-              <span className="metric-label">Total</span>
-              <strong className="metric-value">{formatCurrency(cartTotal)}</strong>
-            </article>
+            <Button
+              stretch
+              onClick={() => void submitSale()}
+              disabled={!openSession || cart.length === 0 || submitting}
+            >
+              <ShoppingBasket size={18} />
+              {submitting ? "Guardando..." : "Registrar"}
+            </Button>
           </div>
-
-          <Button
-            stretch
-            onClick={() => void submitSale()}
-            disabled={!openSession || cart.length === 0 || submitting}
-          >
-            <ShoppingBasket size={18} />
-            {submitting ? "Guardando venta..." : "Registrar venta"}
-          </Button>
         </section>
       </div>
 
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <h2>Ventas recientes</h2>
-            <p className="panel-subtitle">
-              Últimos movimientos de la sesión abierta.
-            </p>
-          </div>
-          <ReceiptText size={18} />
-        </div>
+      {openSession ? (
+        <div className="sales-cart-dock">
+          <button
+            type="button"
+            className="sales-cart-dock__summary"
+            onClick={() => setCartOpen(true)}
+          >
+            <span className="sales-cart-dock__label">Carrito</span>
+            <strong>
+              {cart.length === 0
+                ? "Sin productos"
+                : `${cartUnits} · ${formatCurrency(cartTotal)}`}
+            </strong>
+          </button>
 
-        {!openSession ? (
-          <EmptyState
-            title="Sin actividad visible"
-            description="Abre una sesión y registra ventas para ver el historial aquí."
-          />
-        ) : loadingRecent ? (
-          <p className="muted-text">Cargando ventas recientes...</p>
-        ) : recentSales.length === 0 ? (
-          <EmptyState
-            title="Todavía no hay ventas en esta sesión."
-            description="La primera venta aparecerá aquí apenas la registres."
-          />
-        ) : (
-          <div className="activity-list">
-            {recentSales.map((sale) => (
-              <article className="activity-item" key={sale.id}>
-                <div className="panel-header">
-                  <div className="detail-stack">
-                    <strong>{formatCurrency(sale.totalAmount)}</strong>
-                    <span className="muted-text">
-                      {sale.paymentMethod === "cash" ? "Efectivo" : "Yape"} ·{" "}
-                      {formatHour(sale.createdAt)}
-                    </span>
-                  </div>
-                  {sale.voidInfo ? (
-                    <span className="chip chip--danger">Anulada</span>
-                  ) : (
-                    <span className="chip">Activa</span>
-                  )}
-                </div>
-                <p className="muted-text">
-                  {sale.items.map((item) => `${item.quantity}x ${item.productName}`).join(" · ")}
-                </p>
-              </article>
-            ))}
+          <div
+            className="toggle-row sales-cart-dock__payments"
+            role="tablist"
+            aria-label="Método de pago rápido"
+          >
+            <button
+              type="button"
+              className="toggle-button"
+              data-active={paymentMethod === "cash"}
+              onClick={() => setPaymentMethod("cash")}
+            >
+              Efe
+            </button>
+            <button
+              type="button"
+              className="toggle-button"
+              data-active={paymentMethod === "yape"}
+              onClick={() => setPaymentMethod("yape")}
+            >
+              Yape
+            </button>
           </div>
-        )}
-      </section>
+
+          <Button
+            className="sales-cart-dock__submit"
+            onClick={() => void submitSale()}
+            disabled={cart.length === 0 || submitting}
+          >
+            <ShoppingBasket size={18} />
+            {submitting ? "Guardando..." : "Cobrar"}
+          </Button>
+        </div>
+      ) : null}
 
       <Modal
         open={Boolean(selectedGroup)}
         title={selectedGroup?.label ?? "Categoría"}
-        description={
-          openSession
-            ? "Toca un producto para agregarlo al carrito."
-            : "Abre una caja para agregar productos a la venta."
-        }
         onClose={() => setSelectedGroupKey(null)}
       >
         <div className="quick-product-list">
-          {selectedGroup?.products.map((product) => (
+          {selectedGroup?.products.map((product) => {
+            const currentCount = cartCounts.get(product.id) ?? 0;
+
+            return (
+              <button
+                key={product.id}
+                type="button"
+                className="quick-product-button"
+                onClick={() => addProduct(product)}
+                disabled={!openSession}
+              >
+                <div className="detail-stack">
+                  <strong>{product.name}</strong>
+                  <span className="price">{formatCurrency(product.basePrice)}</span>
+                </div>
+                {currentCount > 0 ? (
+                  <span className="chip">x{currentCount}</span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </Modal>
+
+      <Modal
+        open={cartOpen}
+        title="Venta actual"
+        onClose={() => setCartOpen(false)}
+      >
+        <div className="sales-cart-modal">
+          <div className="toggle-row" role="tablist" aria-label="Método de pago">
             <button
-              key={product.id}
               type="button"
-              className="quick-product-button"
-              onClick={() => addProduct(product)}
-              disabled={!openSession}
+              className="toggle-button"
+              data-active={paymentMethod === "cash"}
+              onClick={() => setPaymentMethod("cash")}
             >
-              <strong>{product.name}</strong>
-              <span className="price">{formatCurrency(product.basePrice)}</span>
+              Efectivo
             </button>
-          ))}
+            <button
+              type="button"
+              className="toggle-button"
+              data-active={paymentMethod === "yape"}
+              onClick={() => setPaymentMethod("yape")}
+            >
+              Yape
+            </button>
+          </div>
+
+          {renderCartEditor("mobile")}
+
+          <div className="sales-checkout-row sales-checkout-row--modal">
+            <div className="sales-checkout-total">
+              <span>Total</span>
+              <strong>{formatCurrency(cartTotal)}</strong>
+            </div>
+            <Button
+              stretch
+              onClick={() => void submitSale()}
+              disabled={!openSession || cart.length === 0 || submitting}
+            >
+              <ShoppingBasket size={18} />
+              {submitting ? "Guardando..." : "Registrar"}
+            </Button>
+          </div>
         </div>
       </Modal>
     </section>

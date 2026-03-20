@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Public_Sans, Space_Grotesk } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
@@ -40,6 +40,15 @@ export const metadata: Metadata = {
     icon: [{ url: "/logoo.png", type: "image/png" }],
     apple: [{ url: "/logoo.png", type: "image/png" }],
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#fff6eb",
 };
 
 export default function RootLayout({

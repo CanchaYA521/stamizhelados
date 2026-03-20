@@ -15,10 +15,8 @@ export function AppShell({
 }>) {
   const router = useRouter();
   const {
-    user,
     signOut,
     isOnline,
-    pendingCount,
     openSession,
     refreshCoreData,
     isRefreshing,
@@ -39,61 +37,42 @@ export function AppShell({
             <div className="brand-copy">
               <strong>Nutria Systems</strong>
               <span className="muted-text">
-                {openSession ? "Caja abierta" : "Caja cerrada"}
+                {openSession ? "Caja abierta" : "Sin caja"}
               </span>
             </div>
           </div>
-          <span
-            className={`status-pill ${isOnline ? "status-pill--online" : "status-pill--offline"}`}
-          >
-            {isOnline ? "En línea" : "Offline"}
-          </span>
         </div>
 
         {!hasSupabaseConfig ? (
           <ConfigNotice />
         ) : (
-          <div className="page-stack">
-            <div className="stats-grid app-sidebar-stats">
-              <article className="stat-card">
-                <span className="metric-label">Sesión actual</span>
-                <strong className="metric-value">
-                  {openSession ? "Activa" : "Sin abrir"}
-                </strong>
-                <span className="metric-footnote">
-                  {openSession ? "Lista para vender" : "Ve a Caja para empezar"}
-                </span>
-              </article>
-              <article className="stat-card">
-                <span className="metric-label">Pendientes</span>
-                <strong className="metric-value">{pendingCount}</strong>
-                <span className="metric-footnote">
-                  {pendingCount === 0
-                    ? "Todo sincronizado"
-                    : "Movimientos por enviar"}
-                </span>
-              </article>
-            </div>
+          <div className="app-header-tools">
+            <span
+              className={`status-pill ${isOnline ? "status-pill--online" : "status-pill--offline"}`}
+            >
+              {isOnline ? "En línea" : "Offline"}
+            </span>
 
-            <div className="subnav-row">
-              <div className="app-account-copy">
-                <div className="metric-label">Cuenta</div>
-                <div className="muted-text">{user?.email ?? "Sin sesión"}</div>
-              </div>
-              <div className="inline-actions app-actions">
-                <Button
-                  variant="ghost"
-                  onClick={() => void refreshCoreData()}
-                  disabled={isRefreshing}
-                >
-                  <RefreshCcw size={16} />
-                  {isRefreshing ? "Actualizando" : "Actualizar"}
-                </Button>
-                <Button variant="ghost" onClick={() => void handleSignOut()}>
-                  <LogOut size={16} />
-                  Salir
-                </Button>
-              </div>
+            <div className="inline-actions app-header-actions">
+              <Button
+                variant="ghost"
+                className="button--compact app-header-action"
+                onClick={() => void refreshCoreData()}
+                disabled={isRefreshing}
+                aria-label={isRefreshing ? "Sincronizando" : "Sincronizar"}
+              >
+                <RefreshCcw size={16} />
+                <span>{isRefreshing ? "Sync..." : "Sync"}</span>
+              </Button>
+              <Button
+                variant="ghost"
+                className="button--compact app-header-action"
+                onClick={() => void handleSignOut()}
+                aria-label="Cerrar sesión"
+              >
+                <LogOut size={16} />
+                <span>Salir</span>
+              </Button>
             </div>
           </div>
         )}
