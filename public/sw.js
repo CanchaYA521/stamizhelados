@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutria-systems-v2";
+const CACHE_NAME = "nutria-systems-v3";
 const APP_SHELL = ["/", "/login", "/offline", "/logoo.png"];
 
 self.addEventListener("install", (event) => {

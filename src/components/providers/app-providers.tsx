@@ -25,9 +25,12 @@ export function AppProviders({
       return;
     }
 
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      // PWA registration is optional.
-    });
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => registration.update())
+      .catch(() => {
+        // PWA registration is optional.
+      });
   }, []);
 
   return (
