@@ -350,10 +350,10 @@ export function SalesScreen() {
       </div>
 
       {openSession ? (
-        <div className="sales-cart-fab-row">
+        <div className="sales-cart-fab">
           <button
             type="button"
-            className="sales-cart-fab"
+            className="sales-cart-fab__summary"
             onClick={() => setCartOpen(true)}
           >
             <span className="sales-cart-fab__eyebrow">Venta actual</span>
@@ -363,7 +363,6 @@ export function SalesScreen() {
                 : `${cartUnits} · ${formatCurrency(cartTotal)}`}
             </strong>
           </button>
-
           <Button
             className="sales-cart-fab__submit"
             onClick={() => void submitSale()}
@@ -371,7 +370,6 @@ export function SalesScreen() {
             aria-label={submitting ? "Guardando venta" : "Registrar venta"}
           >
             <ShoppingBasket size={18} />
-            <span>{submitting ? "..." : "Registrar"}</span>
           </Button>
         </div>
       ) : null}
