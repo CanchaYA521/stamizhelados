@@ -31,52 +31,52 @@ export function AppShell({
   return (
     <div className="app-shell">
       <aside className="app-header app-sidebar">
-        <div className="brand-row">
-          <div className="cluster">
+        <div className="app-header-bar">
+          <div className="brand-row app-brand-row">
             <BrandLogo priority />
             <div className="brand-copy">
               <strong>Nutria Systems</strong>
-              <span className="muted-text">
-                {openSession ? "Caja abierta" : "Sin caja"}
-              </span>
+              <div className="app-header-meta">
+                <span className="muted-text">
+                  {openSession ? "Caja abierta" : "Sin caja"}
+                </span>
+                {hasSupabaseConfig ? (
+                  <span
+                    className={`status-pill status-pill--compact ${isOnline ? "status-pill--online" : "status-pill--offline"}`}
+                  >
+                    {isOnline ? "En línea" : "Offline"}
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
 
-        {!hasSupabaseConfig ? (
-          <ConfigNotice />
-        ) : (
-          <div className="app-header-tools">
-            <span
-              className={`status-pill ${isOnline ? "status-pill--online" : "status-pill--offline"}`}
-            >
-              {isOnline ? "En línea" : "Offline"}
-            </span>
-
-            <div className="inline-actions app-header-actions">
+          {!hasSupabaseConfig ? null : (
+            <div className="app-header-toolbar">
               <Button
                 variant="ghost"
                 className="button--compact app-header-action"
                 onClick={() => void refreshCoreData()}
                 disabled={isRefreshing}
                 aria-label={isRefreshing ? "Sincronizando" : "Sincronizar"}
+                title={isRefreshing ? "Sincronizando" : "Sincronizar"}
               >
                 <RefreshCcw size={16} />
-                <span>{isRefreshing ? "Sync..." : "Sync"}</span>
               </Button>
               <Button
                 variant="ghost"
                 className="button--compact app-header-action"
                 onClick={() => void handleSignOut()}
                 aria-label="Cerrar sesión"
+                title="Cerrar sesión"
               >
                 <LogOut size={16} />
-                <span>Salir</span>
               </Button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
+        {!hasSupabaseConfig ? <ConfigNotice /> : null}
       </aside>
 
       <main className="page-stack app-main">{children}</main>

@@ -170,11 +170,11 @@ export function ReportsScreen() {
         </div>
 
         <div className="summary-grid reports-range">
-          <div className="field">
+          <div className="field reports-date-field">
             <label htmlFor="reportFrom">Desde</label>
             <input
               id="reportFrom"
-              className="input"
+              className="input reports-date-input"
               type="date"
               value={from}
               onChange={(event) =>
@@ -188,11 +188,11 @@ export function ReportsScreen() {
           <div className="reports-range-icon" aria-hidden="true">
             <CalendarRange size={18} />
           </div>
-          <div className="field">
+          <div className="field reports-date-field">
             <label htmlFor="reportTo">Hasta</label>
             <input
               id="reportTo"
-              className="input"
+              className="input reports-date-input"
               type="date"
               value={to}
               onChange={(event) =>
