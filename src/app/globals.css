@@ -1140,13 +1140,25 @@ img {
   place-items: center;
   padding: var(--page-gutter);
   z-index: 50;
+  overscroll-behavior: contain;
 }
 
 .modal-card {
   width: min(100%, 520px);
   padding: var(--panel-padding);
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
+  max-height: calc(100dvh - (var(--page-gutter) * 2));
+  overflow: hidden;
+}
+
+.modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
 }
 
 .divider {
